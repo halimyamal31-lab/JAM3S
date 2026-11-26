@@ -26,11 +26,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
-          name: JAM3S-Windows-Installer
-          path: dist/JAM3S_Setup.exe
+          name: JAM3S-V2-Windows-Installer
+          path: dist/JAM3S_V2_Setup.exe
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: JAM3S-Windows-VST3
+          name: JAM3S-V2-Windows-VST3
           path: build/JAM3S_artefacts/Release/VST3/
           if-no-files-found: error
