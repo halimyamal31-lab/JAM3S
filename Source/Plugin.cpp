@@ -143,7 +143,10 @@ public:
         float r=juce::jmin(box.getWidth(),box.getHeight())*.5f;
         auto c=box.getCentre();
         auto ring=juce::Rectangle<float>(2*r,2*r).withCentre(c);
-        g.setColour(juce::Colour(0xff303039)); g.fillEllipse(ring);
+        g.setColour(juce::Colour(0xff08090b));g.fillEllipse(ring.expanded(2));
+        for(int i=0;i<5;++i){g.setColour(juce::Colour(0xffff2040).withAlpha(.035f));g.drawEllipse(ring.expanded(float(i)),2);}
+        juce::ColourGradient edge(juce::Colour(0xffe5e7ed),c.x,c.y-r,juce::Colour(0xff444650),c.x,c.y+r,false);
+        edge.addColour(.42,juce::Colour(0xff33343c));edge.addColour(.53,juce::Colour(0xffa3a6b1));g.setGradientFill(edge);g.fillEllipse(ring);
         g.setGradientFill(juce::ColourGradient(juce::Colour(0xff666671),c.x,c.y-r,
             juce::Colour(0xff08080b),c.x,c.y+r,false));
         g.fillEllipse(ring.reduced(4));
@@ -162,7 +165,7 @@ class Editor final : public juce::AudioProcessorEditor,private juce::Timer
 public:
     explicit Editor(Engine& e):AudioProcessorEditor(e),engine(e) {
         setLookAndFeel(&look);
-        setSize(900,590);
+        setSize(980,570);
         for(size_t i=0;i<specs.size();++i) {
             auto& s=sliders[i]; s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
             s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,82,22);
@@ -172,9 +175,13 @@ public:
             l.setColour(juce::Label::textColourId,juce::Colour(0xffd7d7df)); addAndMakeVisible(l);
             attachments[i]=std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(engine.state,specs[i].id,s);
         }
-        presets.addItem("Clean Lead",1); presets.addItem("Melodic Rap",2);
-        presets.addItem("Dark Rap",3); presets.addItem("Intimate R&B",4);
-        presets.setSelectedId(1,juce::dontSendNotification); addAndMakeVisible(presets);
+        const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook"};
+        for(int i=0;i<20;++i) presets.addItem(names[i],i+1);
+        presets.setTextWhenNothingSelected("SELECT VOCAL PRESET"); addAndMakeVisible(presets);
+        advanced.setButtonText("ADVANCED"); addAndMakeVisible(advanced);
+        advanced.onClick=[this]{resized(); repaint();};
+        const char* titles[]={"INPUT","NOISE","LOW CUT","TONE","CLARITY","COMPRESS","RATIO","DE-ESS","WARMTH","WIDTH","DELAY","TIME","REVERB","OUTPUT","CEILING"};
+        for(size_t i=0;i<specs.size();++i) labels[i].setText(titles[i],juce::dontSendNotification);
         presets.onChange=[this]{ applyPreset(presets.getSelectedId()); };
         bypass.setButtonText("BYPASS"); addAndMakeVisible(bypass);
         bypassAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(engine.state,"bypass",bypass);
@@ -182,39 +189,88 @@ public:
     }
     ~Editor() override { stopTimer(); setLookAndFeel(nullptr); }
     void paint(juce::Graphics& g) override {
-        g.fillAll(juce::Colour(0xff0b0b10));
-        g.setGradientFill(juce::ColourGradient(juce::Colour(0xff303039),0,0,juce::Colour(0xff0a0a0e),0,110,false));
-        g.fillRect(0,0,getWidth(),104);
-        g.setColour(juce::Colour(0xffff3049)); g.fillRect(0,101,getWidth(),3);
-        g.setFont(juce::FontOptions(43.0f,juce::Font::bold));
-        g.drawText("JAM3S",28,8,300,55,juce::Justification::centredLeft);
-        g.setColour(juce::Colour(0xffbdbdc9)); g.setFont(juce::FontOptions(13.0f));
-        g.drawText("V O C A L   E N G I N E",30,62,340,24,juce::Justification::centredLeft);
-        for(int row=0;row<3;++row) {
-            auto rect=juce::Rectangle<float>(20,float(119+row*144),860,136);
-            g.setColour(juce::Colour(0xff17171e)); g.fillRoundedRectangle(rect,9);
-            g.setColour(juce::Colour(0xff35353f)); g.drawRoundedRectangle(rect,9,1);
+        g.fillAll(juce::Colour(0xff08090c));
+        auto frame=getLocalBounds().toFloat().reduced(5);
+        juce::ColourGradient metal(juce::Colour(0xff777981),0,0,juce::Colour(0xff18191e),0,570,false);
+        metal.addColour(.12,juce::Colour(0xff101115)); metal.addColour(.50,juce::Colour(0xff3d3e46));
+        metal.addColour(.52,juce::Colour(0xff101115)); g.setGradientFill(metal); g.fillRoundedRectangle(frame,16);
+        g.setColour(juce::Colour(0xff07080b)); g.fillRoundedRectangle(frame.reduced(5),12);
+        for(int i=0;i<8;++i) {g.setColour(juce::Colour(0xffff163e).withAlpha(.025f));g.drawRoundedRectangle(frame.reduced(float(6+i)),12,2);}
+        g.setColour(juce::Colour(0xfffd2544));g.drawRoundedRectangle(frame.reduced(7),11,1.5f);
+        g.setGradientFill(juce::ColourGradient(juce::Colour(0xff34363e),0,12,juce::Colour(0xff0c0d11),0,112,false));
+        g.fillRoundedRectangle(17,17,946,98,10);
+        g.setFont(juce::FontOptions(48.0f,juce::Font::bold|juce::Font::italic));
+        g.setGradientFill(juce::ColourGradient(juce::Colour(0xfff4f6ff),0,22,juce::Colour(0xff717681),0,72,false));
+        g.drawText("JAM3S",33,17,300,61,juce::Justification::centredLeft);
+        g.setColour(juce::Colour(0xffff3150));g.setFont(juce::FontOptions(12.0f,juce::Font::bold));
+        g.drawText("V O C A L   E N G I N E   /   V 2",36,77,380,20,juce::Justification::centredLeft);
+        auto panel=[&](float y,float h,const juce::String& title){
+            juce::Rectangle<float> r(22,y,936,h);
+            juce::ColourGradient grad(juce::Colour(0xff202127),0,y,juce::Colour(0xff101116),0,y+h,false);
+            g.setGradientFill(grad);g.fillRoundedRectangle(r,10);
+            g.setColour(juce::Colour(0xff484951));g.drawRoundedRectangle(r,10,1);
+            g.setColour(juce::Colour(0xffff2847));g.fillRoundedRectangle(35,y+12,22,3,1);
+            g.setColour(juce::Colour(0xffbfc2cc));g.setFont(juce::FontOptions(12.0f,juce::Font::bold));
+            g.drawText(title,65,int(y)+5,850,20,juce::Justification::centredLeft);
+        };
+        panel(129,206,advanced.getToggleState()?"ADVANCED  /  SIGNAL SHAPING":"01  /  VOCAL SHAPE");
+        panel(346,170,advanced.getToggleState()?"ADVANCED  /  EFFECTS & OUTPUT":"02  /  COLOR & SPACE");
+        g.setColour(juce::Colour(0xff30323a));g.fillRoundedRectangle(35,537,750,12,4);
+        float level=juce::jlimit(0.f,1.f,engine.peak.load());
+        for(int i=0;i<50;++i){
+            g.setColour(i<level*50?juce::Colour(0xffff304a):juce::Colour(0xff191a20));
+            g.fillRoundedRectangle(37.f+i*14.9f,539,12,8,1);
         }
-        g.setColour(juce::Colour(0xff3a3a43)); g.fillRoundedRectangle(24,565,680,8,3);
-        g.setColour(juce::Colour(0xffff3049)); g.fillRoundedRectangle(24,565,680*juce::jlimit(0.f,1.f,engine.peak.load()),8,3);
-        g.setColour(juce::Colour(0xffc1c1cc)); g.setFont(juce::FontOptions(12.0f));
-        g.drawText("OUTPUT   /   VST3",720,554,150,28,juce::Justification::centredRight);
+        g.setColour(juce::Colour(0xffbfc2cc));g.setFont(juce::FontOptions(12.0f));
+        g.drawText("OUTPUT  /  VST3",800,530,145,25,juce::Justification::centredRight);
     }
     void resized() override {
-        presets.setBounds(540,25,220,32); bypass.setBounds(775,25,100,32);
-        for(size_t i=0;i<specs.size();++i) {
-            int x=30+int(i%5)*170,y=124+int(i/5)*144;
-            labels[i].setBounds(x,y,160,23); sliders[i].setBounds(x+18,y+22,124,104);
+        presets.setBounds(385,33,325,37); advanced.setBounds(725,33,116,37); bypass.setBounds(850,33,95,37);
+        for(size_t i=0;i<specs.size();++i){sliders[i].setVisible(false);labels[i].setVisible(false);}
+        auto place=[&](int index,int col,int count,int y,int height){
+            int cell=900/count,x=40+col*cell;
+            labels[index].setBounds(x,y,cell,22);
+            int w=juce::jmin(cell-10,height-12);
+            sliders[index].setBounds(x+(cell-w)/2,y+22,w,height);
+            sliders[index].setVisible(true);labels[index].setVisible(true);
+        };
+        if(advanced.getToggleState()){
+            const int top[]={0,1,2,3,4,5,6,7};const int bottom[]={8,9,10,11,12,13,14};
+            for(int i=0;i<8;++i)place(top[i],i,8,164,145);
+            for(int i=0;i<7;++i)place(bottom[i],i,7,377,110);
+        }else{
+            const int top[]={0,3,4,5,7,13};const int bottom[]={8,9,10,12};
+            for(int i=0;i<6;++i)place(top[i],i,6,164,145);
+            for(int i=0;i<4;++i)place(bottom[i],i,4,377,110);
         }
     }
 private:
-    void timerCallback() override { repaint(0,550,getWidth(),40); }
+    void timerCallback() override { repaint(0,526,getWidth(),40); }
     void applyPreset(int id) {
         std::array<float,15> a{};
         for(size_t i=0;i<a.size();++i) a[i]=specs[i].initial;
         if(id==2) { a[5]=-23;a[6]=3.8f;a[7]=35;a[8]=22;a[9]=18;a[10]=17;a[12]=13; }
         if(id==3) { a[3]=2;a[4]=-1;a[5]=-25;a[6]=4.5f;a[8]=30;a[10]=9;a[12]=5; }
         if(id==4) { a[3]=1;a[4]=2.5f;a[5]=-16;a[6]=2.5f;a[7]=35;a[9]=12;a[10]=16;a[12]=20; }
+        switch(id){
+            case 5: a[3]=1;a[4]=2;a[5]=-22;a[6]=3.5f;a[7]=32;a[8]=17;a[10]=12;a[12]=10;break;
+            case 6: a[2]=105;a[4]=2;a[5]=-24;a[6]=4;a[7]=40;a[8]=22;a[12]=5;break;
+            case 7: a[3]=-1;a[4]=4;a[7]=40;a[12]=6;break;
+            case 8: a[3]=2;a[4]=1;a[5]=-20;a[8]=20;a[12]=18;break;
+            case 9: a[2]=120;a[3]=-2;a[4]=4;a[7]=52;a[9]=14;a[12]=22;break;
+            case 10:a[5]=-28;a[6]=5;a[8]=40;a[12]=3;break;
+            case 11:a[4]=2;a[5]=-19;a[7]=40;a[8]=12;a[12]=7;break;
+            case 12:a[5]=-22;a[9]=65;a[10]=25;a[12]=30;break;
+            case 13:a[2]=240;a[3]=-9;a[4]=-9;a[5]=-25;a[6]=5;a[8]=60;a[12]=0;break;
+            case 14:a[9]=55;a[12]=10;a[10]=0;break;
+            case 15:a[5]=-15;a[6]=2;a[8]=8;a[10]=0;a[12]=3;break;
+            case 16:a[2]=150;a[9]=55;a[10]=48;a[11]=420;a[12]=60;break;
+            case 17:a[5]=-22;a[6]=4;a[10]=0;a[12]=0;break;
+            case 18:a[5]=-19;a[6]=2.8f;a[7]=35;a[12]=25;break;
+            case 19:a[3]=3;a[4]=-3;a[8]=35;a[12]=12;break;
+            case 20:a[3]=1;a[4]=-1;a[9]=42;a[10]=35;a[11]=375;a[12]=32;break;
+            default: break;
+        }
         for(size_t i=0;i<a.size();++i) if(auto* p=engine.state.getParameter(specs[i].id)) {
             p->beginChangeGesture(); p->setValueNotifyingHost(p->convertTo0to1(a[i])); p->endChangeGesture();
         }
@@ -223,7 +279,7 @@ private:
     std::array<juce::Slider,15> sliders;
     std::array<juce::Label,15> labels;
     std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>,15> attachments;
-    juce::ComboBox presets; juce::ToggleButton bypass;
+    juce::ComboBox presets; juce::ToggleButton bypass, advanced;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> bypassAttachment;
 };
 juce::AudioProcessorEditor* Engine::createEditor(){return new Editor(*this);}
