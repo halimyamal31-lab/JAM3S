@@ -150,6 +150,7 @@ public:
         g.setGradientFill(juce::ColourGradient(juce::Colour(0xff666671),c.x,c.y-r,
             juce::Colour(0xff08080b),c.x,c.y+r,false));
         g.fillEllipse(ring.reduced(4));
+        juce::ColourGradient face(juce::Colour(0xff424650),c.x,c.y-r,juce::Colour(0xff08090d),c.x,c.y+r,false);face.addColour(.46,juce::Colour(0xff16181e));face.addColour(.48,juce::Colour(0xff555965));g.setGradientFill(face);g.fillEllipse(ring.reduced(10));
         g.setColour(juce::Colour(0xff050507)); g.drawEllipse(ring.reduced(4),2);
         juce::Path arc; arc.addCentredArc(c.x,c.y,r-1,r-1,0,start,end,true);
         g.setColour(juce::Colour(0xff50505a)); g.strokePath(arc,juce::PathStrokeType(3));
@@ -165,7 +166,7 @@ class Editor final : public juce::AudioProcessorEditor,private juce::Timer
 public:
     explicit Editor(Engine& e):AudioProcessorEditor(e),engine(e) {
         setLookAndFeel(&look);
-        setSize(980,570);
+        
         for(size_t i=0;i<specs.size();++i) {
             auto& s=sliders[i]; s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
             s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,82,22);
@@ -185,67 +186,68 @@ public:
         presets.onChange=[this]{ applyPreset(presets.getSelectedId()); };
         bypass.setButtonText("BYPASS"); addAndMakeVisible(bypass);
         bypassAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(engine.state,"bypass",bypass);
-        startTimerHz(24);
+        setSize(1100,610); resized(); startTimerHz(24);
     }
     ~Editor() override { stopTimer(); setLookAndFeel(nullptr); }
     void paint(juce::Graphics& g) override {
-        g.fillAll(juce::Colour(0xff08090c));
-        auto frame=getLocalBounds().toFloat().reduced(5);
-        juce::ColourGradient metal(juce::Colour(0xff777981),0,0,juce::Colour(0xff18191e),0,570,false);
-        metal.addColour(.12,juce::Colour(0xff101115)); metal.addColour(.50,juce::Colour(0xff3d3e46));
-        metal.addColour(.52,juce::Colour(0xff101115)); g.setGradientFill(metal); g.fillRoundedRectangle(frame,16);
-        g.setColour(juce::Colour(0xff07080b)); g.fillRoundedRectangle(frame.reduced(5),12);
-        for(int i=0;i<8;++i) {g.setColour(juce::Colour(0xffff163e).withAlpha(.025f));g.drawRoundedRectangle(frame.reduced(float(6+i)),12,2);}
-        g.setColour(juce::Colour(0xfffd2544));g.drawRoundedRectangle(frame.reduced(7),11,1.5f);
-        g.setGradientFill(juce::ColourGradient(juce::Colour(0xff34363e),0,12,juce::Colour(0xff0c0d11),0,112,false));
-        g.fillRoundedRectangle(17,17,946,98,10);
-        g.setFont(juce::FontOptions(48.0f,juce::Font::bold|juce::Font::italic));
-        g.setGradientFill(juce::ColourGradient(juce::Colour(0xfff4f6ff),0,22,juce::Colour(0xff717681),0,72,false));
-        g.drawText("JAM3S",33,17,300,61,juce::Justification::centredLeft);
-        g.setColour(juce::Colour(0xffff3150));g.setFont(juce::FontOptions(12.0f,juce::Font::bold));
-        g.drawText("V O C A L   E N G I N E   /   V 2",36,77,380,20,juce::Justification::centredLeft);
-        auto panel=[&](float y,float h,const juce::String& title){
-            juce::Rectangle<float> r(22,y,936,h);
-            juce::ColourGradient grad(juce::Colour(0xff202127),0,y,juce::Colour(0xff101116),0,y+h,false);
-            g.setGradientFill(grad);g.fillRoundedRectangle(r,10);
-            g.setColour(juce::Colour(0xff484951));g.drawRoundedRectangle(r,10,1);
-            g.setColour(juce::Colour(0xffff2847));g.fillRoundedRectangle(35,y+12,22,3,1);
-            g.setColour(juce::Colour(0xffbfc2cc));g.setFont(juce::FontOptions(12.0f,juce::Font::bold));
-            g.drawText(title,65,int(y)+5,850,20,juce::Justification::centredLeft);
+        const auto red=juce::Colour(0xffff123c);
+        g.fillAll(juce::Colour(0xff06070a));
+        juce::ColourGradient steel(juce::Colour(0xffb5b8c2),0,0,juce::Colour(0xff31343d),0,610,false);
+        steel.addColour(.16,juce::Colour(0xff12141a));steel.addColour(.48,juce::Colour(0xff666a76));steel.addColour(.51,juce::Colour(0xff13151b));
+        g.setGradientFill(steel);g.fillRoundedRectangle(4,4,1092,602,20);
+        g.setColour(juce::Colour(0xff08090d));g.fillRoundedRectangle(11,11,1078,588,15);
+        auto plate=[&](float x,float y,float w,float h){
+            juce::ColourGradient p(juce::Colour(0xff30333d),x,y,juce::Colour(0xff0c0e13),x,y+h,false);
+            p.addColour(.22,juce::Colour(0xff17191f));g.setGradientFill(p);g.fillRoundedRectangle(x,y,w,h,12);
+            g.setColour(juce::Colour(0xff656974));g.drawRoundedRectangle(x,y,w,h,12,1);
         };
-        panel(129,206,advanced.getToggleState()?"ADVANCED  /  SIGNAL SHAPING":"01  /  VOCAL SHAPE");
-        panel(346,170,advanced.getToggleState()?"ADVANCED  /  EFFECTS & OUTPUT":"02  /  COLOR & SPACE");
-        g.setColour(juce::Colour(0xff30323a));g.fillRoundedRectangle(35,537,750,12,4);
-        float level=juce::jlimit(0.f,1.f,engine.peak.load());
-        for(int i=0;i<50;++i){
-            g.setColour(i<level*50?juce::Colour(0xffff304a):juce::Colour(0xff191a20));
-            g.fillRoundedRectangle(37.f+i*14.9f,539,12,8,1);
-        }
-        g.setColour(juce::Colour(0xffbfc2cc));g.setFont(juce::FontOptions(12.0f));
-        g.drawText("OUTPUT  /  VST3",800,530,145,25,juce::Justification::centredRight);
+        plate(22,22,250,566);plate(285,22,793,96);plate(285,130,793,260);plate(285,402,793,186);
+        for(int i=0;i<6;++i){g.setColour(red.withAlpha(.04f));g.drawRoundedRectangle(14.f+i,14.f+i,1072.f-2*i,582.f-2*i,14,3);}
+        g.setColour(red);g.fillRoundedRectangle(286,119,790,3,1);
+        g.setFont(juce::FontOptions(55.f,juce::Font::bold|juce::Font::italic));
+        juce::ColourGradient logo(juce::Colour(0xfffafaff),0,40,juce::Colour(0xff757a85),0,102,false);
+        logo.addColour(.5,juce::Colour(0xffbcc0ca));g.setGradientFill(logo);
+        g.drawText("JAM3S",32,38,228,72,juce::Justification::centred);
+        g.setFont(juce::FontOptions(13.f,juce::Font::bold));g.setColour(red);
+        g.drawText("V O C A L   E N G I N E",30,109,234,24,juce::Justification::centred);
+        g.setColour(juce::Colour(0xffa3a7b4));g.drawText("BLACK CHROME  /  2.1",30,134,234,22,juce::Justification::centred);
+        g.setColour(juce::Colour(0xff090a0e));g.fillRoundedRectangle(42,177,210,230,8);
+        g.setColour(red);g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.drawText("SIGNAL OUTPUT",52,184,190,25,juce::Justification::centred);
+        float db=juce::Decibels::gainToDecibels(engine.peak.load(),-60.f);
+        float level=juce::jlimit(0.f,1.f,(db+60.f)/60.f);
+        for(int i=0;i<28;++i){g.setColour(i<level*28?red:juce::Colour(0xff262831));g.fillRoundedRectangle(78,365.f-i*5.2f,138,3.5f,1);}
+        g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(18.f));g.drawText(juce::String(db,1)+" dB",52,375,190,25,juce::Justification::centred);
+        g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.setColour(juce::Colour(0xffa9adba));
+        g.drawText("PRESET BANK  /  20",42,423,210,20,juce::Justification::centredLeft);
+        g.drawText("01   /   VOCAL CONTROL",310,141,710,25,juce::Justification::centredLeft);
+        g.drawText("02   /   CHARACTER & SPACE",310,410,710,25,juce::Justification::centredLeft);
+        g.setFont(juce::FontOptions(27.f,juce::Font::bold));g.setColour(juce::Colours::white);
+        g.drawText(advanced.getToggleState()?"ENGINE / EXPERT":"ENGINE / ESSENTIAL",310,38,470,40,juce::Justification::centredLeft);
+        g.setFont(juce::FontOptions(13.f));g.setColour(juce::Colour(0xffa9adba));g.drawText("PRO VOCAL CHANNEL STRIP",312,79,470,20,juce::Justification::centredLeft);
+        for(int x: {30,1070})for(int y:{30,580}){g.setColour(juce::Colour(0xff757986));g.fillEllipse(float(x-3),float(y-3),6,6);g.setColour(juce::Colours::black);g.drawLine(float(x-2),float(y+2),float(x+2),float(y-2));}
     }
     void resized() override {
-        presets.setBounds(385,33,325,37); advanced.setBounds(725,33,116,37); bypass.setBounds(850,33,95,37);
+        presets.setBounds(42,449,210,40);advanced.setBounds(42,510,210,30);bypass.setBounds(42,548,210,28);
         for(size_t i=0;i<specs.size();++i){sliders[i].setVisible(false);labels[i].setVisible(false);}
-        auto place=[&](int index,int col,int count,int y,int height){
-            int cell=900/count,x=40+col*cell;
-            labels[index].setBounds(x,y,cell,22);
-            int w=juce::jmin(cell-10,height-12);
-            sliders[index].setBounds(x+(cell-w)/2,y+22,w,height);
+        auto place=[&](int index,int col,int count,int y,int h){
+            int cell=748/count,x=307+col*cell;
+            labels[index].setBounds(x,y,cell,24);
+            int w=juce::jmin(cell-6,h);
+            sliders[index].setBounds(x+(cell-w)/2,y+25,w,h);
             sliders[index].setVisible(true);labels[index].setVisible(true);
         };
         if(advanced.getToggleState()){
             const int top[]={0,1,2,3,4,5,6,7};const int bottom[]={8,9,10,11,12,13,14};
-            for(int i=0;i<8;++i)place(top[i],i,8,164,145);
-            for(int i=0;i<7;++i)place(bottom[i],i,7,377,110);
+            for(int i=0;i<8;++i)place(top[i],i,8,195,140);
+            for(int i=0;i<7;++i)place(bottom[i],i,7,440,112);
         }else{
             const int top[]={0,3,4,5,7,13};const int bottom[]={8,9,10,12};
-            for(int i=0;i<6;++i)place(top[i],i,6,164,145);
-            for(int i=0;i<4;++i)place(bottom[i],i,4,377,110);
+            for(int i=0;i<6;++i)place(top[i],i,6,175,184);
+            for(int i=0;i<4;++i)place(bottom[i],i,4,440,116);
         }
     }
 private:
-    void timerCallback() override { repaint(0,526,getWidth(),40); }
+    void timerCallback() override { repaint(42,177,210,230); }
     void applyPreset(int id) {
         std::array<float,15> a{};
         for(size_t i=0;i<a.size();++i) a[i]=specs[i].initial;
