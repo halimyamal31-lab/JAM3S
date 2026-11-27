@@ -195,8 +195,8 @@ public:
             l.setColour(juce::Label::textColourId,juce::Colour(0xffd7d7df)); addAndMakeVisible(l);
             attachments[i]=std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(engine.state,specs[i].id,s);
         }
-        const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook","Crimson Lead","Midnight Melodic","Noir Drill","Platinum Hook","Redline Rap","Velvet Soul","Ghost Adlibs","Neon Halo","Cinematic Confession","Chrome Presence","After Hours","Inferno Doubles"};
-        for(int i=0;i<32;++i) presets.addItem(names[i],i+1);
+        const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook","Crimson Lead","Midnight Melodic","Noir Drill","Platinum Hook","Redline Rap","Velvet Soul","Ghost Adlibs","Neon Halo","Cinematic Confession","Chrome Presence","After Hours","Inferno Doubles","Rap Presence","Diamond Lead","Crimson Drill","Arena Hook","Silk R&B","Shadow Verse","Red Room Adlibs","Crystal Female"};
+        for(int i=0;i<40;++i) presets.addItem(names[i],i+1);
         presets.setTextWhenNothingSelected("SELECT VOCAL PRESET"); addAndMakeVisible(presets);
         advanced.setButtonText("EXPERT"); advanced.setClickingTogglesState(true); addAndMakeVisible(advanced);
         advanced.onClick=[this]{resized(); repaint();};
@@ -254,7 +254,7 @@ public:
             g.setColour(juce::Colours::white);g.drawText(juce::String(db,1)+" dB",x,121,120,20,juce::Justification::centred);
         };
         meter(548,"IN LEVEL",visualInput);meter(680,"OUT LEVEL",visualPeak);
-        g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(13.f,juce::Font::bold|juce::Font::italic));g.drawText("FACTORY PRESETS  /  32",820,45,270,24,juce::Justification::centredLeft);
+        g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(13.f,juce::Font::bold|juce::Font::italic));g.drawText("FACTORY PRESETS  /  40",820,45,270,24,juce::Justification::centredLeft);
         const char* title[]={"TONE","DYNAMICS","CHARACTER","SPACE"};
         const char* sub[]={"FILTER / EQ / SIBILANCE","LEVEL / COMPRESSION","TEXTURE / WIDTH","ECHO / REVERB"};
         for(int k=0;k<4;++k){
@@ -266,8 +266,8 @@ public:
             for(int j=0;j<3;++j){g.setColour(red.withAlpha(.55f+visualEnergy*.4f));g.drawLine(x+220+j*10,243,x+232+j*10,224,3);}
         }
         panel(9,690,1102,84);
-        g.setColour(red);g.fillEllipse(30,725,10,10);
-        g.setFont(juce::FontOptions(13.f,juce::Font::bold|juce::Font::italic));g.setColour(juce::Colours::white);g.drawText("ENGINE ACTIVE",47,712,150,35,juce::Justification::centredLeft);
+        g.setColour(bypass.getToggleState()?juce::Colour(0xff55555b):red);g.fillEllipse(30,725,10,10);
+        g.setFont(juce::FontOptions(13.f,juce::Font::bold|juce::Font::italic));g.setColour(juce::Colours::white);g.drawText(bypass.getToggleState()?"ENGINE BYPASSED":"ENGINE ACTIVE",47,712,150,35,juce::Justification::centredLeft);
         g.setColour(juce::Colour(0xffbdbdc4));g.drawText("CHROME INFERNO  /  AN ORIGINAL VOCAL TOOL",665,712,420,35,juce::Justification::centredRight);
     }
     void resized() override {
@@ -295,7 +295,7 @@ private:
     }
     float visualPeak=0.f,visualInput=0.f,visualEnergy=0.f;
     void applyPreset(int id) {
-        if(id<1 || id>32) return;
+        if(id<1 || id>40) return;
         std::array<float,15> a{};
         for(size_t i=0;i<a.size();++i) a[i]=specs[i].initial;
         if(id==2) { a[5]=-23;a[6]=3.8f;a[7]=35;a[8]=22;a[9]=18;a[10]=17;a[12]=13; }
@@ -330,6 +330,14 @@ private:
             case 30: a={{0.0f,-67.0f,95.0f,-1.0f,3.0f,-21.0f,3.5f,45.0f,14.0f,0.0f,0.0f,180.0f,4.0f,1.0f,-1.0f}};break;
             case 31: a={{0.0f,-74.0f,85.0f,2.0f,-2.0f,-21.0f,3.0f,32.0f,24.0f,30.0f,40.0f,340.0f,28.0f,0.0f,-1.0f}};break;
             case 32: a={{0.0f,-68.0f,140.0f,-2.0f,1.0f,-26.0f,4.5f,42.0f,26.0f,70.0f,12.0f,200.0f,15.0f,-3.0f,-1.0f}};break;
+            case 33: a={{0.0f,-68.0f,92.0f,1.0f,2.7f,-24.0f,3.7f,50.0f,19.0f,0.0f,4.0f,185.0f,6.0f,4.0f,-1.0f}};break;
+            case 34: a={{0.0f,-72.0f,95.0f,-1.0f,4.0f,-20.0f,3.2f,45.0f,12.0f,0.0f,4.0f,160.0f,5.0f,2.0f,-1.0f}};break;
+            case 35: a={{0.0f,-65.0f,110.0f,1.0f,-1.0f,-27.0f,5.0f,40.0f,31.0f,0.0f,6.0f,150.0f,4.0f,2.0f,-1.0f}};break;
+            case 36: a={{0.0f,-72.0f,90.0f,1.0f,3.0f,-23.0f,3.5f,45.0f,15.0f,55.0f,30.0f,330.0f,35.0f,1.0f,-1.0f}};break;
+            case 37: a={{0.0f,-76.0f,70.0f,2.0f,2.0f,-17.0f,2.4f,32.0f,12.0f,15.0f,15.0f,270.0f,20.0f,1.0f,-1.0f}};break;
+            case 38: a={{0.0f,-70.0f,85.0f,3.0f,-3.0f,-22.0f,3.8f,32.0f,25.0f,0.0f,12.0f,230.0f,8.0f,1.0f,-1.0f}};break;
+            case 39: a={{0.0f,-74.0f,160.0f,-3.0f,1.0f,-25.0f,4.0f,45.0f,30.0f,65.0f,45.0f,410.0f,55.0f,-3.0f,-2.0f}};break;
+            case 40: a={{0.0f,-78.0f,120.0f,-2.0f,5.0f,-18.0f,2.8f,55.0f,8.0f,12.0f,10.0f,220.0f,18.0f,1.0f,-1.0f}};break;
             default: break;
         }
         for(size_t i=0;i<a.size();++i) if(auto* p=engine.state.getParameter(specs[i].id)) {
