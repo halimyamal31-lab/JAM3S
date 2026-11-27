@@ -69,7 +69,7 @@ public:
     void processBlock(juce::AudioBuffer<float>& b,juce::MidiBuffer&) override
     {
         juce::ScopedNoDenormals nd;
-        if (value("bypass")>0.5f || history.getNumSamples()<2) return;
+        if (value("bypass")>0.5f || history.getNumSamples()<2) { peak.store(b.getNumChannels()>0 && b.getNumSamples()>0 ? b.getMagnitude(0,b.getNumSamples()):0.f); return; }
         const int n=b.getNumSamples(), nc=juce::jmin(2,b.getNumChannels()), size=history.getNumSamples();
         if(nc==0 || n==0) return;
         auto coeff=[&](float f){return 1.0f-std::exp(-6.28318530718f*f/float(rate));};
@@ -194,8 +194,8 @@ public:
             l.setColour(juce::Label::textColourId,juce::Colour(0xffd7d7df)); addAndMakeVisible(l);
             attachments[i]=std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(engine.state,specs[i].id,s);
         }
-        const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook"};
-        for(int i=0;i<20;++i) presets.addItem(names[i],i+1);
+        const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook","Crimson Lead","Midnight Melodic","Noir Drill","Platinum Hook","Redline Rap","Velvet Soul","Ghost Adlibs","Neon Halo","Cinematic Confession","Chrome Presence","After Hours","Inferno Doubles"};
+        for(int i=0;i<32;++i) presets.addItem(names[i],i+1);
         presets.setTextWhenNothingSelected("SELECT VOCAL PRESET"); addAndMakeVisible(presets);
         advanced.setButtonText("ADVANCED"); advanced.setClickingTogglesState(true); addAndMakeVisible(advanced);
         advanced.onClick=[this]{resized(); repaint();};
@@ -209,6 +209,7 @@ public:
     ~Editor() override { stopTimer(); setLookAndFeel(nullptr); }
     void paint(juce::Graphics& g) override {
         const auto red=juce::Colour(0xffff123c);
+        const float energy=visualEnergy;
         g.fillAll(juce::Colour(0xff06070a));
         juce::ColourGradient steel(juce::Colour(0xffb5b8c2),0,0,juce::Colour(0xff31343d),0,610,false);
         steel.addColour(.10,juce::Colour(0xfff0f4fa));steel.addColour(.18,juce::Colour(0xff4b5260));steel.addColour(.48,juce::Colour(0xffa9b2bf));steel.addColour(.51,juce::Colour(0xff13151b));steel.addColour(.93,juce::Colour(0xffe1e7ef));
@@ -226,6 +227,9 @@ public:
             g.setColour(red.withAlpha(.65f));g.drawLine(x+14,y+5,x+w-14,y+5,1);
         };
         plate(22,22,250,566);plate(285,22,793,96);plate(285,130,793,260);plate(285,402,793,186);
+        for(int i=0;i<3;++i){float cx=440.f+280.f*i;juce::ColourGradient bloom(red.withAlpha(.08f+energy*.13f),cx,128,red.withAlpha(0.f),cx+230,128,true);g.setGradientFill(bloom);g.fillEllipse(cx-230,25,460,215);}
+        for(int i=0;i<5;++i){float x=925.f+i*22.f;g.setColour(red.withAlpha(.13f+energy*.30f));g.fillRoundedRectangle(x,44,12,42,3);g.setColour(juce::Colour(0xffffa0af).withAlpha(.20f+energy*.45f));g.drawLine(x+2,46,x+2,83,1);}
+        g.setColour(red.withAlpha(.30f+energy*.55f));g.drawRoundedRectangle(17,17,1066,576,13,2);
         for(int i=0;i<6;++i){g.setColour(red.withAlpha(.04f));g.drawRoundedRectangle(14.f+i,14.f+i,1072.f-2*i,582.f-2*i,14,3);}
         for(int i=8;i>0;--i){g.setColour(red.withAlpha(.045f));g.fillRoundedRectangle(286,120.f-i,790,float(2*i+2),4);}
         g.setColour(red);g.fillRoundedRectangle(286,119,790,3,1);g.setColour(juce::Colour(0xffffa1ad));g.fillRect(300,120,762,1);
@@ -237,17 +241,17 @@ public:
         g.setGradientFill(logo);g.drawText("JAM3S",32,38,228,72,juce::Justification::centred);
         g.setFont(juce::FontOptions(13.f,juce::Font::bold));g.setColour(red);
         g.drawText("V O C A L   E N G I N E",30,109,234,24,juce::Justification::centred);
-        g.setColour(juce::Colour(0xffa3a7b4));g.drawText("CHROME INFERNO  /  2.2",30,134,234,22,juce::Justification::centred);
+        g.setColour(juce::Colour(0xffa3a7b4));g.drawText("CHROME INFERNO  /  2.3",30,134,234,22,juce::Justification::centred);
         g.setColour(juce::Colour(0xff090a0e));g.fillRoundedRectangle(42,177,210,230,8);
         g.setColour(red);g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.drawText("SIGNAL OUTPUT",52,184,190,25,juce::Justification::centred);
-        float db=juce::Decibels::gainToDecibels(engine.peak.load(),-60.f);
+        float db=juce::Decibels::gainToDecibels(visualPeak,-60.f);
         float level=juce::jlimit(0.f,1.f,(db+60.f)/60.f);
         for(int i=0;i<28;++i){if(i<level*28){g.setColour(red.withAlpha(.13f));g.fillRoundedRectangle(72,363.f-i*5.2f,150,7,3);}
             g.setColour(i<level*28?red:juce::Colour(0xff262831));g.fillRoundedRectangle(78,365.f-i*5.2f,138,3.5f,1);
             if(i<level*28){g.setColour(juce::Colour(0xffff9baa));g.fillRect(80.f,365.f-i*5.2f,134.f,.8f);}}
         g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(18.f));g.drawText(juce::String(db,1)+" dB",52,375,190,25,juce::Justification::centred);
         g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.setColour(juce::Colour(0xffa9adba));
-        g.drawText("PRESET BANK  /  20",42,423,210,20,juce::Justification::centredLeft);
+        g.drawText("PRESET BANK  /  32",42,423,210,20,juce::Justification::centredLeft);
         g.drawText("01   /   VOCAL CONTROL",310,141,710,25,juce::Justification::centredLeft);
         g.drawText("02   /   CHARACTER & SPACE",310,410,710,25,juce::Justification::centredLeft);
         g.setFont(juce::FontOptions(27.f,juce::Font::bold));g.setColour(juce::Colours::white);
@@ -276,8 +280,14 @@ public:
         }
     }
 private:
-    void timerCallback() override { repaint(42,177,210,230); }
+    void timerCallback() override {
+        float p=engine.peak.load(); visualPeak=juce::jmax(p,visualPeak*.88f);
+        float target=juce::jlimit(0.f,1.f,std::sqrt(visualPeak)); visualEnergy+=.20f*(target-visualEnergy);
+        repaint();
+    }
+    float visualPeak=0.f,visualEnergy=0.f;
     void applyPreset(int id) {
+        if(id<1 || id>32) return;
         std::array<float,15> a{};
         for(size_t i=0;i<a.size();++i) a[i]=specs[i].initial;
         if(id==2) { a[5]=-23;a[6]=3.8f;a[7]=35;a[8]=22;a[9]=18;a[10]=17;a[12]=13; }
@@ -300,6 +310,18 @@ private:
             case 18:a[5]=-19;a[6]=2.8f;a[7]=35;a[12]=25;break;
             case 19:a[3]=3;a[4]=-3;a[8]=35;a[12]=12;break;
             case 20:a[3]=1;a[4]=-1;a[9]=42;a[10]=35;a[11]=375;a[12]=32;break;
+            case 21: a={{0.0f,-67.0f,92.0f,1.0f,3.0f,-23.0f,4.0f,42.0f,19.0f,0.0f,7.0f,185.0f,5.0f,1.0f,-1.0f}};break;
+            case 22: a={{0.0f,-72.0f,82.0f,2.0f,0.0f,-22.0f,3.5f,35.0f,16.0f,23.0f,32.0f,375.0f,24.0f,1.0f,-1.0f}};break;
+            case 23: a={{0.0f,-61.0f,105.0f,1.0f,-2.0f,-26.0f,4.8f,38.0f,28.0f,0.0f,5.0f,140.0f,3.0f,1.0f,-1.0f}};break;
+            case 24: a={{0.0f,-70.0f,100.0f,-1.0f,4.0f,-24.0f,3.8f,48.0f,12.0f,55.0f,24.0f,310.0f,24.0f,0.0f,-1.0f}};break;
+            case 25: a={{0.0f,-62.0f,110.0f,0.0f,2.0f,-28.0f,5.5f,50.0f,35.0f,0.0f,0.0f,120.0f,2.0f,2.0f,-1.0f}};break;
+            case 26: a={{0.0f,-76.0f,68.0f,3.0f,1.0f,-16.0f,2.2f,28.0f,12.0f,10.0f,15.0f,280.0f,19.0f,0.0f,-1.0f}};break;
+            case 27: a={{0.0f,-72.0f,175.0f,-3.0f,-1.0f,-24.0f,4.0f,35.0f,25.0f,75.0f,55.0f,480.0f,70.0f,-3.0f,-2.0f}};break;
+            case 28: a={{0.0f,-75.0f,120.0f,-1.0f,5.0f,-20.0f,3.0f,55.0f,8.0f,40.0f,25.0f,410.0f,40.0f,0.0f,-1.0f}};break;
+            case 29: a={{0.0f,-78.0f,75.0f,2.0f,-1.0f,-18.0f,2.5f,25.0f,9.0f,8.0f,18.0f,520.0f,35.0f,0.0f,-1.0f}};break;
+            case 30: a={{0.0f,-67.0f,95.0f,-1.0f,3.0f,-21.0f,3.5f,45.0f,14.0f,0.0f,0.0f,180.0f,4.0f,1.0f,-1.0f}};break;
+            case 31: a={{0.0f,-74.0f,85.0f,2.0f,-2.0f,-21.0f,3.0f,32.0f,24.0f,30.0f,40.0f,340.0f,28.0f,0.0f,-1.0f}};break;
+            case 32: a={{0.0f,-68.0f,140.0f,-2.0f,1.0f,-26.0f,4.5f,42.0f,26.0f,70.0f,12.0f,200.0f,15.0f,-3.0f,-1.0f}};break;
             default: break;
         }
         for(size_t i=0;i<a.size();++i) if(auto* p=engine.state.getParameter(specs[i].id)) {
