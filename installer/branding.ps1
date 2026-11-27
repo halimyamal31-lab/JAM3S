@@ -17,14 +17,22 @@ function New-Art([int]$w,[int]$h,[string]$file,[bool]$small) {
   }
   $red=New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(255,24,56),2)
   $g.DrawRectangle($red,9,9,$w-19,$h-19)
+  if(!$small){
+    for($j=0;$j -lt 4;$j++){
+      $yy=120+$j*36
+      $g.FillRectangle($metal,15,$yy,$w-30,30)
+      $g.FillRectangle([System.Drawing.Brushes]::Black,17,$yy+2,$w-34,26)
+      $g.DrawLine($red,20,$yy+2,$w-20,$yy+2)
+    }
+  }
   $cx=$w/2; $cy=$h*.58; $r=[Math]::Min($w*.34,$h*.27)
   if($small){$cy=$h/2;$r=$h*.30}
   $ring=New-Object System.Drawing.RectangleF([single]($cx-$r),[single]($cy-$r),[single](2*$r),[single](2*$r))
-  $g.FillEllipse($metal,$ring)
+  if($small){$g.FillEllipse($metal,$ring)
   $inside=New-Object System.Drawing.RectangleF([single]($cx-$r*.76),[single]($cy-$r*.76),[single](1.52*$r),[single](1.52*$r))
   $g.FillEllipse([System.Drawing.Brushes]::Black,$inside)
   $g.DrawEllipse($red,$ring)
-  $g.DrawLine($red,[single]$cx,[single]($cy-$r*.7),[single]$cx,[single]($cy-$r*.28))
+  $g.DrawLine($red,[single]$cx,[single]($cy-$r*.7),[single]$cx,[single]($cy-$r*.28))}
   $font=New-Object System.Drawing.Font('Arial',[single]$(if($small){12}else{25}),[System.Drawing.FontStyle]::Bold)
   $fmt=New-Object System.Drawing.StringFormat
   $fmt.Alignment=[System.Drawing.StringAlignment]::Center
@@ -33,7 +41,11 @@ function New-Art([int]$w,[int]$h,[string]$file,[bool]$small) {
     $sub=New-Object System.Drawing.Font('Arial',10,[System.Drawing.FontStyle]::Bold)
     $brush=New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,40,65))
     $g.DrawString('CHROME INFERNO',$sub,$brush,(New-Object System.Drawing.RectangleF(0,86,$w,30)),$fmt)
-    $g.DrawString('VOCAL ENGINE  /  2.3',$sub,[System.Drawing.Brushes]::Silver,(New-Object System.Drawing.RectangleF(0,$h-57,$w,30)),$fmt)
+    $g.DrawString('VOCAL ENGINE  /  2.4',$sub,[System.Drawing.Brushes]::Silver,(New-Object System.Drawing.RectangleF(0,$h-57,$w,30)),$fmt)
+    $names=@('TONE','DYNAMICS','CHARACTER','SPACE')
+    for($j=0;$j -lt 4;$j++){
+      $g.DrawString($names[$j],$sub,[System.Drawing.Brushes]::Silver,(New-Object System.Drawing.RectangleF(0,(125+$j*36),$w,24)),$fmt)
+    }
     $sub.Dispose();$brush.Dispose()
   }
   $bmp.Save($file,[System.Drawing.Imaging.ImageFormat]::Bmp)
