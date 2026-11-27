@@ -18,10 +18,11 @@ jobs:
         shell: pwsh
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (!(Test-Path $iscc)) {
-            choco install innosetup -y --no-progress
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          choco upgrade innosetup -y --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path $iscc)) { throw "Inno Setup compiler not found" }
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File "installer\branding.ps1"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $iscc "installer\JAM3S.iss"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
