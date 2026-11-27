@@ -39,7 +39,7 @@ public:
     Engine() : AudioProcessor(BusesProperties().withInput("Input",juce::AudioChannelSet::stereo(),true)
         .withOutput("Output",juce::AudioChannelSet::stereo(),true)), state(*this,nullptr,"JAM3S",layout()) {}
     juce::AudioProcessorValueTreeState state;
-    std::atomic<float> peak {0};
+    std::atomic<float> peak {0}, inputPeak {0};
     const juce::String getName() const override { return "JAM3S Vocal Engine"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
@@ -69,6 +69,7 @@ public:
     void processBlock(juce::AudioBuffer<float>& b,juce::MidiBuffer&) override
     {
         juce::ScopedNoDenormals nd;
+        inputPeak.store(b.getNumChannels()>0 && b.getNumSamples()>0 ? b.getMagnitude(0,b.getNumSamples()):0.f);
         if (value("bypass")>0.5f || history.getNumSamples()<2) { peak.store(b.getNumChannels()>0 && b.getNumSamples()>0 ? b.getMagnitude(0,b.getNumSamples()):0.f); return; }
         const int n=b.getNumSamples(), nc=juce::jmin(2,b.getNumChannels()), size=history.getNumSamples();
         if(nc==0 || n==0) return;
@@ -197,95 +198,102 @@ public:
         const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook","Crimson Lead","Midnight Melodic","Noir Drill","Platinum Hook","Redline Rap","Velvet Soul","Ghost Adlibs","Neon Halo","Cinematic Confession","Chrome Presence","After Hours","Inferno Doubles"};
         for(int i=0;i<32;++i) presets.addItem(names[i],i+1);
         presets.setTextWhenNothingSelected("SELECT VOCAL PRESET"); addAndMakeVisible(presets);
-        advanced.setButtonText("ADVANCED"); advanced.setClickingTogglesState(true); addAndMakeVisible(advanced);
+        advanced.setButtonText("EXPERT"); advanced.setClickingTogglesState(true); addAndMakeVisible(advanced);
         advanced.onClick=[this]{resized(); repaint();};
-        const char* titles[]={"INPUT","NOISE","LOW CUT","TONE","CLARITY","COMPRESS","RATIO","DE-ESS","WARMTH","WIDTH","DELAY","TIME","REVERB","OUTPUT","CEILING"};
+        const char* titles[]={"INPUT","GATE","HIGH PASS","BODY","AIR","THRESHOLD","RATIO","DE-ESS","DRIVE","DOUBLER","DELAY MIX","DELAY TIME","REVERB MIX","OUTPUT","CEILING"};
         for(size_t i=0;i<specs.size();++i) labels[i].setText(titles[i],juce::dontSendNotification);
         presets.onChange=[this]{ applyPreset(presets.getSelectedId()); };
         bypass.setButtonText("BYPASS"); addAndMakeVisible(bypass);
         bypassAttachment=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(engine.state,"bypass",bypass);
-        setSize(1100,610); resized(); startTimerHz(24);
+        setSize(1120,790); resized(); startTimerHz(24);
     }
     ~Editor() override { stopTimer(); setLookAndFeel(nullptr); }
     void paint(juce::Graphics& g) override {
-        const auto red=juce::Colour(0xffff123c);
-        const float energy=visualEnergy;
-        g.fillAll(juce::Colour(0xff06070a));
-        juce::ColourGradient steel(juce::Colour(0xffb5b8c2),0,0,juce::Colour(0xff31343d),0,610,false);
-        steel.addColour(.10,juce::Colour(0xfff0f4fa));steel.addColour(.18,juce::Colour(0xff4b5260));steel.addColour(.48,juce::Colour(0xffa9b2bf));steel.addColour(.51,juce::Colour(0xff13151b));steel.addColour(.93,juce::Colour(0xffe1e7ef));
-        g.setGradientFill(steel);g.fillRoundedRectangle(4,4,1092,602,20);
-        g.setColour(juce::Colour(0xff08090d));g.fillRoundedRectangle(11,11,1078,588,15);
-        for(int i=0;i<6;++i){g.setColour(red.withAlpha(.07f));g.drawRoundedRectangle(12.f+i,12.f+i,1076.f-2*i,586.f-2*i,14,3);}
-        g.setColour(red);g.drawRoundedRectangle(13,13,1074,584,14,1.5f);
-        auto plate=[&](float x,float y,float w,float h){
-            g.setColour(juce::Colours::black.withAlpha(.65f));g.fillRoundedRectangle(x+2,y+5,w,h,12);
-            juce::ColourGradient bevel(juce::Colour(0xffe1e6ee),x,y,juce::Colour(0xff606875),x,y+h,false);bevel.addColour(.14,juce::Colour(0xff333a45));bevel.addColour(.83,juce::Colour(0xff15191f));g.setGradientFill(bevel);g.fillRoundedRectangle(x,y,w,h,12);
-            juce::ColourGradient p(juce::Colour(0xff30333d),x,y,juce::Colour(0xff0c0e13),x,y+h,false);
-            p.addColour(.22,juce::Colour(0xff17191f));g.setGradientFill(p);g.fillRoundedRectangle(x+3,y+3,w-6,h-6,9);
-            g.setColour(juce::Colour(0xff727987));g.drawRoundedRectangle(x+3,y+3,w-6,h-6,9,1);
-            for(int i=0;i<4;++i){g.setColour(red.withAlpha(.07f));g.drawLine(x+12,y+5+i,x+w-12,y+5+i,2);}
-            g.setColour(red.withAlpha(.65f));g.drawLine(x+14,y+5,x+w-14,y+5,1);
+        const auto red=juce::Colour(0xffff1638);
+        g.fillAll(juce::Colour(0xff050506));
+        auto metal=[&](float y,float h){
+            juce::ColourGradient c(juce::Colour(0xfff8f8fc),0,y,juce::Colour(0xff81838b),0,y+h,false);
+            c.addColour(.17,juce::Colour(0xff777981));c.addColour(.37,juce::Colour(0xfff5f5f7));c.addColour(.50,juce::Colour(0xff222328));c.addColour(.54,juce::Colour(0xffa5a7af));c.addColour(.78,juce::Colour(0xff41434b));return c;
         };
-        plate(22,22,250,566);plate(285,22,793,96);plate(285,130,793,260);plate(285,402,793,186);
-        for(int i=0;i<3;++i){float cx=440.f+280.f*i;juce::ColourGradient bloom(red.withAlpha(.08f+energy*.13f),cx,128,red.withAlpha(0.f),cx+230,128,true);g.setGradientFill(bloom);g.fillEllipse(cx-230,25,460,215);}
-        for(int i=0;i<5;++i){float x=925.f+i*22.f;g.setColour(red.withAlpha(.13f+energy*.30f));g.fillRoundedRectangle(x,44,12,42,3);g.setColour(juce::Colour(0xffffa0af).withAlpha(.20f+energy*.45f));g.drawLine(x+2,46,x+2,83,1);}
-        g.setColour(red.withAlpha(.30f+energy*.55f));g.drawRoundedRectangle(17,17,1066,576,13,2);
-        for(int i=0;i<6;++i){g.setColour(red.withAlpha(.04f));g.drawRoundedRectangle(14.f+i,14.f+i,1072.f-2*i,582.f-2*i,14,3);}
-        for(int i=8;i>0;--i){g.setColour(red.withAlpha(.045f));g.fillRoundedRectangle(286,120.f-i,790,float(2*i+2),4);}
-        g.setColour(red);g.fillRoundedRectangle(286,119,790,3,1);g.setColour(juce::Colour(0xffffa1ad));g.fillRect(300,120,762,1);
-        g.setFont(juce::FontOptions(55.f,juce::Font::bold|juce::Font::italic));
-        juce::ColourGradient logo(juce::Colour(0xfffafaff),0,40,juce::Colour(0xff757a85),0,102,false);
-        logo.addColour(.5,juce::Colour(0xffbcc0ca));g.setGradientFill(logo);
-        for(int i=5;i>0;--i){g.setColour(juce::Colour(0xff090a0d));g.drawText("JAM3S",32+i,38+i,228,72,juce::Justification::centred);}
-        g.setColour(red.withAlpha(.35f));g.drawText("JAM3S",32,40,228,72,juce::Justification::centred);
-        g.setGradientFill(logo);g.drawText("JAM3S",32,38,228,72,juce::Justification::centred);
-        g.setFont(juce::FontOptions(13.f,juce::Font::bold));g.setColour(red);
-        g.drawText("V O C A L   E N G I N E",30,109,234,24,juce::Justification::centred);
-        g.setColour(juce::Colour(0xffa3a7b4));g.drawText("CHROME INFERNO  /  2.3",30,134,234,22,juce::Justification::centred);
-        g.setColour(juce::Colour(0xff090a0e));g.fillRoundedRectangle(42,177,210,230,8);
-        g.setColour(red);g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.drawText("SIGNAL OUTPUT",52,184,190,25,juce::Justification::centred);
-        float db=juce::Decibels::gainToDecibels(visualPeak,-60.f);
-        float level=juce::jlimit(0.f,1.f,(db+60.f)/60.f);
-        for(int i=0;i<28;++i){if(i<level*28){g.setColour(red.withAlpha(.13f));g.fillRoundedRectangle(72,363.f-i*5.2f,150,7,3);}
-            g.setColour(i<level*28?red:juce::Colour(0xff262831));g.fillRoundedRectangle(78,365.f-i*5.2f,138,3.5f,1);
-            if(i<level*28){g.setColour(juce::Colour(0xffff9baa));g.fillRect(80.f,365.f-i*5.2f,134.f,.8f);}}
-        g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(18.f));g.drawText(juce::String(db,1)+" dB",52,375,190,25,juce::Justification::centred);
-        g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.setColour(juce::Colour(0xffa9adba));
-        g.drawText("PRESET BANK  /  32",42,423,210,20,juce::Justification::centredLeft);
-        g.drawText("01   /   VOCAL CONTROL",310,141,710,25,juce::Justification::centredLeft);
-        g.drawText("02   /   CHARACTER & SPACE",310,410,710,25,juce::Justification::centredLeft);
-        g.setFont(juce::FontOptions(27.f,juce::Font::bold));g.setColour(juce::Colours::white);
-        g.drawText(advanced.getToggleState()?"ENGINE / EXPERT":"ENGINE / ESSENTIAL",310,38,470,40,juce::Justification::centredLeft);
-        g.setFont(juce::FontOptions(13.f));g.setColour(juce::Colour(0xffa9adba));g.drawText("PRO VOCAL CHANNEL STRIP",312,79,470,20,juce::Justification::centredLeft);
-        for(int x: {30,1070})for(int y:{30,580}){g.setColour(juce::Colour(0xff757986));g.fillEllipse(float(x-3),float(y-3),6,6);g.setColour(juce::Colours::black);g.drawLine(float(x-2),float(y+2),float(x+2),float(y-2));}
+        auto cut=[](float x,float y,float w,float h,float d){
+            juce::Path p;p.startNewSubPath(x+d,y);p.lineTo(x+w-d,y);p.lineTo(x+w,y+d);p.lineTo(x+w,y+h-d);p.lineTo(x+w-d,y+h);p.lineTo(x+d,y+h);p.lineTo(x,y+h-d);p.lineTo(x,y+d);p.closeSubPath();return p;
+        };
+        auto rail=[&](float x,float y,float w){
+            for(int i=10;i>0;--i){g.setColour(red.withAlpha(.025f+visualEnergy*.015f));g.fillRoundedRectangle(x,y-float(i),w,float(i*2+1),4);}
+            g.setColour(red);g.fillRect(x,y,w,2.f);
+            g.setGradientFill(juce::ColourGradient(red.withAlpha(0.f),x,y,juce::Colours::white,x+w*.5f,y,false));
+            g.fillRect(x,y,w*.5f,1.f);
+            g.setGradientFill(juce::ColourGradient(juce::Colours::white,x+w*.5f,y,red.withAlpha(0.f),x+w,y,false));
+            g.fillRect(x+w*.5f,y,w*.5f,1.f);
+        };
+        auto panel=[&](float x,float y,float w,float h){
+            auto p=cut(x,y,w,h,16);
+            for(int i=6;i>0;--i){g.setColour(red.withAlpha(.045f));g.strokePath(p,juce::PathStrokeType(float(i)*2));}
+            g.setGradientFill(metal(y,h));g.fillPath(p);
+            auto q=cut(x+3,y+3,w-6,h-6,14);
+            juce::ColourGradient dark(juce::Colour(0xff303036),x,y,juce::Colour(0xff080809),x,y+h,false);
+            dark.addColour(.18,juce::Colour(0xff101012));dark.addColour(.8,juce::Colour(0xff17171b));g.setGradientFill(dark);g.fillPath(q);
+            g.setColour(juce::Colour(0xff82838a));g.strokePath(q,juce::PathStrokeType(.7f));
+            rail(x+21,y+4,w-42);rail(x+21,y+h-5,w-42);
+            for(float sx:{x+13,x+w-13})for(float sy:{y+13,y+h-13}){g.setColour(juce::Colour(0xffa5a6ae));g.fillEllipse(sx-2.5f,sy-2.5f,5,5);g.setColour(juce::Colours::black);g.drawLine(sx-1.5f,sy+1.5f,sx+1.5f,sy-1.5f);}
+        };
+        panel(8,8,1104,174);
+        g.setFont(juce::FontOptions(92.f,juce::Font::bold|juce::Font::italic));
+        for(int i=7;i>0;--i){g.setColour(juce::Colour(0xff24030a));g.drawText("JAM3S",22+i,12+i,505,103,juce::Justification::centred);}
+        g.setGradientFill(metal(26,79));g.drawText("JAM3S",22,12,505,103,juce::Justification::centred);
+        g.setFont(juce::FontOptions(23.f,juce::Font::bold|juce::Font::italic));g.setColour(red);
+        g.drawText("V O C A L   E N G I N E",35,112,478,30,juce::Justification::centred);
+        g.setFont(juce::FontOptions(12.f,juce::Font::italic));g.setColour(juce::Colour(0xffc5c5cc));g.drawText("M H   B E A T S   /   V S T 3   /   2 . 4",35,148,478,20,juce::Justification::centred);
+        auto meter=[&](int x,const juce::String& label,float value){
+            float db=juce::Decibels::gainToDecibels(value,-60.f);
+            float level=juce::jlimit(0.f,1.f,(db+60.f)/60.f);
+            g.setFont(juce::FontOptions(12.f,juce::Font::bold|juce::Font::italic));g.setColour(juce::Colours::white);g.drawText(label,x,72,120,20,juce::Justification::centred);
+            g.setColour(juce::Colour(0xff030304));g.fillRoundedRectangle(float(x),98,120,18,7);
+            g.setColour(juce::Colour(0xff74757b));g.drawRoundedRectangle(float(x),98,120,18,7,1);
+            for(int i=0;i<29;++i){g.setColour(i<level*29?red:juce::Colour(0xff29292c));g.fillRect(float(x+5+i*3.8f),102.f,2.6f,10.f);}
+            g.setColour(juce::Colours::white);g.drawText(juce::String(db,1)+" dB",x,121,120,20,juce::Justification::centred);
+        };
+        meter(548,"IN LEVEL",visualInput);meter(680,"OUT LEVEL",visualPeak);
+        g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(13.f,juce::Font::bold|juce::Font::italic));g.drawText("FACTORY PRESETS  /  32",820,45,270,24,juce::Justification::centredLeft);
+        const char* title[]={"TONE","DYNAMICS","CHARACTER","SPACE"};
+        const char* sub[]={"FILTER / EQ / SIBILANCE","LEVEL / COMPRESSION","TEXTURE / WIDTH","ECHO / REVERB"};
+        for(int k=0;k<4;++k){
+            float x=9.f+k*278.f;panel(x,195,268,477);
+            g.setGradientFill(metal(214,40));g.setFont(juce::FontOptions(30.f,juce::Font::bold|juce::Font::italic));g.drawText(title[k],int(x)+16,212,236,40,juce::Justification::centredLeft);
+            g.setColour(juce::Colour(0xffbcbcc4));g.setFont(juce::FontOptions(11.f,juce::Font::italic));g.drawText(sub[k],int(x)+16,252,236,22,juce::Justification::centredLeft);
+            g.setColour(juce::Colour(0xff77777e));g.drawLine(x+13,280,x+255,280,1);
+            rail(x+12,282,244);
+            for(int j=0;j<3;++j){g.setColour(red.withAlpha(.55f+visualEnergy*.4f));g.drawLine(x+220+j*10,243,x+232+j*10,224,3);}
+        }
+        panel(9,690,1102,84);
+        g.setColour(red);g.fillEllipse(30,725,10,10);
+        g.setFont(juce::FontOptions(13.f,juce::Font::bold|juce::Font::italic));g.setColour(juce::Colours::white);g.drawText("ENGINE ACTIVE",47,712,150,35,juce::Justification::centredLeft);
+        g.setColour(juce::Colour(0xffbdbdc4));g.drawText("CHROME INFERNO  /  AN ORIGINAL VOCAL TOOL",665,712,420,35,juce::Justification::centredRight);
     }
     void resized() override {
-        presets.setBounds(42,449,210,40);advanced.setBounds(42,510,210,30);bypass.setBounds(42,548,210,28);
+        presets.setBounds(820,78,268,49);advanced.setBounds(215,710,150,40);bypass.setBounds(390,710,150,40);
         for(size_t i=0;i<specs.size();++i){sliders[i].setVisible(false);labels[i].setVisible(false);}
-        auto place=[&](int index,int col,int count,int y,int h){
-            int cell=748/count,x=307+col*cell;
-            labels[index].setBounds(x,y,cell,24);
-            int w=juce::jmin(cell-6,h);
-            sliders[index].setBounds(x+(cell-w)/2,y+25,w,h);
-            sliders[index].setVisible(true);labels[index].setVisible(true);
+        auto place=[&](int idx,int panel,int col,int count,int y){
+            int x=18+panel*278,cell=250/count;
+            labels[idx].setBounds(x+col*cell,y,cell,23);
+            int w=juce::jmin(cell-3,112);
+            sliders[idx].setBounds(x+col*cell+(cell-w)/2,y+25,w,117);
+            sliders[idx].setVisible(true);labels[idx].setVisible(true);
         };
-        if(advanced.getToggleState()){
-            const int top[]={0,1,2,3,4,5,6,7};const int bottom[]={8,9,10,11,12,13,14};
-            for(int i=0;i<8;++i)place(top[i],i,8,195,140);
-            for(int i=0;i<7;++i)place(bottom[i],i,7,440,112);
-        }else{
-            const int top[]={0,3,4,5,7,13};const int bottom[]={8,9,10,12};
-            for(int i=0;i<6;++i)place(top[i],i,6,175,184);
-            for(int i=0;i<4;++i)place(bottom[i],i,4,440,116);
-        }
+        place(2,0,0,3,303);place(3,0,1,3,303);place(4,0,2,3,303);place(7,0,0,2,490);
+        place(5,1,0,2,303);place(6,1,1,2,303);
+        place(8,2,0,2,303);place(9,2,1,2,303);place(0,2,0,2,490);place(13,2,1,2,490);
+        place(11,3,0,2,303);place(10,3,1,2,303);place(12,3,0,2,490);
+        if(advanced.getToggleState()){place(1,0,1,2,490);place(14,1,0,2,490);}
     }
 private:
     void timerCallback() override {
-        float p=engine.peak.load(); visualPeak=juce::jmax(p,visualPeak*.88f);
-        float target=juce::jlimit(0.f,1.f,std::sqrt(visualPeak)); visualEnergy+=.20f*(target-visualEnergy);
+        visualPeak=juce::jmax(engine.peak.load(),visualPeak*.88f);
+        visualInput=juce::jmax(engine.inputPeak.load(),visualInput*.88f);
+        visualEnergy+=.20f*(juce::jlimit(0.f,1.f,std::sqrt(visualPeak))-visualEnergy);
         repaint();
     }
-    float visualPeak=0.f,visualEnergy=0.f;
+    float visualPeak=0.f,visualInput=0.f,visualEnergy=0.f;
     void applyPreset(int id) {
         if(id<1 || id>32) return;
         std::array<float,15> a{};
