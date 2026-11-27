@@ -139,26 +139,44 @@ public:
         setColour(juce::ToggleButton::textColourId,juce::Colours::white);
     }
     void drawRotarySlider(juce::Graphics& g,int x,int y,int w,int h,float p,float start,float end,juce::Slider&) override {
-        auto box=juce::Rectangle<float>(float(x),float(y),float(w),float(h)).reduced(7);
+        const auto neon=juce::Colour(0xffff163e);
+        auto box=juce::Rectangle<float>(float(x),float(y),float(w),float(h)).reduced(12);
         float r=juce::jmin(box.getWidth(),box.getHeight())*.5f;
         auto c=box.getCentre();
         auto ring=juce::Rectangle<float>(2*r,2*r).withCentre(c);
-        g.setColour(juce::Colour(0xff08090b));g.fillEllipse(ring.expanded(2));
-        for(int i=0;i<5;++i){g.setColour(juce::Colour(0xffff2040).withAlpha(.035f));g.drawEllipse(ring.expanded(float(i)),2);}
-        juce::ColourGradient edge(juce::Colour(0xffe5e7ed),c.x,c.y-r,juce::Colour(0xff444650),c.x,c.y+r,false);
-        edge.addColour(.42,juce::Colour(0xff33343c));edge.addColour(.53,juce::Colour(0xffa3a6b1));g.setGradientFill(edge);g.fillEllipse(ring);
-        g.setGradientFill(juce::ColourGradient(juce::Colour(0xff666671),c.x,c.y-r,
-            juce::Colour(0xff08080b),c.x,c.y+r,false));
-        g.fillEllipse(ring.reduced(4));
-        juce::ColourGradient face(juce::Colour(0xff424650),c.x,c.y-r,juce::Colour(0xff08090d),c.x,c.y+r,false);face.addColour(.46,juce::Colour(0xff16181e));face.addColour(.48,juce::Colour(0xff555965));g.setGradientFill(face);g.fillEllipse(ring.reduced(10));
-        g.setColour(juce::Colour(0xff050507)); g.drawEllipse(ring.reduced(4),2);
-        juce::Path arc; arc.addCentredArc(c.x,c.y,r-1,r-1,0,start,end,true);
-        g.setColour(juce::Colour(0xff50505a)); g.strokePath(arc,juce::PathStrokeType(3));
-        juce::Path active; active.addCentredArc(c.x,c.y,r-1,r-1,0,start,start+p*(end-start),true);
-        g.setColour(juce::Colour(0xffff334d)); g.strokePath(active,juce::PathStrokeType(3.5f));
-        juce::Path pointer; pointer.addRoundedRectangle(-1.5f,-r*.69f,3,r*.34f,1.5f);
+        for(int i=8;i>0;--i){
+            g.setColour(juce::Colours::black.withAlpha(.09f));
+            g.fillEllipse(ring.expanded(float(i)*.6f).translated(0,5));
+        }
+        juce::ColourGradient halo(neon.withAlpha(.38f),c.x,c.y,neon.withAlpha(0.f),c.x+r+12,c.y,true);
+        g.setGradientFill(halo);g.fillEllipse(ring.expanded(12));
+        g.setColour(juce::Colour(0xff030406));g.fillEllipse(ring.expanded(3));
+        juce::ColourGradient rim(juce::Colour(0xfffafcff),c.x,c.y-r,juce::Colour(0xff7a828e),c.x,c.y+r,false);
+        rim.addColour(.16,juce::Colour(0xff737b89));rim.addColour(.32,juce::Colour(0xffe7edf5));
+        rim.addColour(.48,juce::Colour(0xff11151b));rim.addColour(.53,juce::Colour(0xff4a515c));rim.addColour(.77,juce::Colour(0xffb8c0cb));
+        g.setGradientFill(rim);g.fillEllipse(ring);
+        auto inset=ring.reduced(r*.15f);
+        g.setColour(juce::Colour(0xff07090c));g.fillEllipse(inset);
+        auto cap=ring.reduced(r*.25f);
+        juce::ColourGradient face(juce::Colour(0xffd7dde6),c.x-r*.6f,c.y-r*.7f,juce::Colour(0xff11151c),c.x+r*.7f,c.y+r*.7f,false);
+        face.addColour(.23,juce::Colour(0xff7a8391));face.addColour(.48,juce::Colour(0xff20252e));face.addColour(.52,juce::Colour(0xffaeb6c2));face.addColour(.77,juce::Colour(0xff363d47));
+        g.setGradientFill(face);g.fillEllipse(cap);
+        for(int i=0;i<24;++i){
+            float angle=juce::MathConstants<float>::twoPi*float(i)/24.f;
+            float sx=std::sin(angle),cy=std::cos(angle);
+            g.setColour(juce::Colours::white.withAlpha(.13f));
+            g.drawLine(c.x+sx*r*.77f,c.y+cy*r*.77f,c.x+sx*r*.70f,c.y+cy*r*.70f,1);
+        }
+        g.setColour(juce::Colours::white.withAlpha(.35f));g.drawEllipse(cap,1);
+        juce::Path arc;arc.addCentredArc(c.x,c.y,r+3,r+3,0,start,end,true);
+        g.setColour(juce::Colour(0xff323641));g.strokePath(arc,juce::PathStrokeType(2));
+        juce::Path active;active.addCentredArc(c.x,c.y,r+3,r+3,0,start,start+p*(end-start),true);
+        for(int i=5;i>0;--i){g.setColour(neon.withAlpha(.08f));g.strokePath(active,juce::PathStrokeType(float(i)*2+2));}
+        g.setColour(neon);g.strokePath(active,juce::PathStrokeType(3.5f));
+        g.setColour(juce::Colour(0xffffa4ac));g.strokePath(active,juce::PathStrokeType(1));
+        juce::Path pointer;pointer.addRoundedRectangle(-2.f,-r*.64f,4,r*.32f,2.f);
         pointer.applyTransform(juce::AffineTransform::rotation(start+p*(end-start)).translated(c.x,c.y));
-        g.setColour(juce::Colour(0xffffc5cb)); g.fillPath(pointer);
+        g.setColour(neon);g.strokePath(pointer,juce::PathStrokeType(4));g.setColour(juce::Colour(0xffffe1e5));g.fillPath(pointer);
     }
 };
 class Editor final : public juce::AudioProcessorEditor,private juce::Timer
@@ -179,7 +197,7 @@ public:
         const char* names[]={"Clean Lead","Melodic Rap","Dark Rap","Intimate R&B","Russ Inspired","Trap Lead","Bright Vocal","Warm R&B","Airy Female","Aggressive Rap","Studio Polish","Wide Hook","Phone Effect","Doubled Lead","Intimate Vocal","Adlib Space","Dry Rap","Smooth Singing","Vintage Warmth","Late Night Hook"};
         for(int i=0;i<20;++i) presets.addItem(names[i],i+1);
         presets.setTextWhenNothingSelected("SELECT VOCAL PRESET"); addAndMakeVisible(presets);
-        advanced.setButtonText("ADVANCED"); addAndMakeVisible(advanced);
+        advanced.setButtonText("ADVANCED"); advanced.setClickingTogglesState(true); addAndMakeVisible(advanced);
         advanced.onClick=[this]{resized(); repaint();};
         const char* titles[]={"INPUT","NOISE","LOW CUT","TONE","CLARITY","COMPRESS","RATIO","DE-ESS","WARMTH","WIDTH","DELAY","TIME","REVERB","OUTPUT","CEILING"};
         for(size_t i=0;i<specs.size();++i) labels[i].setText(titles[i],juce::dontSendNotification);
@@ -193,29 +211,40 @@ public:
         const auto red=juce::Colour(0xffff123c);
         g.fillAll(juce::Colour(0xff06070a));
         juce::ColourGradient steel(juce::Colour(0xffb5b8c2),0,0,juce::Colour(0xff31343d),0,610,false);
-        steel.addColour(.16,juce::Colour(0xff12141a));steel.addColour(.48,juce::Colour(0xff666a76));steel.addColour(.51,juce::Colour(0xff13151b));
+        steel.addColour(.10,juce::Colour(0xfff0f4fa));steel.addColour(.18,juce::Colour(0xff4b5260));steel.addColour(.48,juce::Colour(0xffa9b2bf));steel.addColour(.51,juce::Colour(0xff13151b));steel.addColour(.93,juce::Colour(0xffe1e7ef));
         g.setGradientFill(steel);g.fillRoundedRectangle(4,4,1092,602,20);
         g.setColour(juce::Colour(0xff08090d));g.fillRoundedRectangle(11,11,1078,588,15);
+        for(int i=0;i<6;++i){g.setColour(red.withAlpha(.07f));g.drawRoundedRectangle(12.f+i,12.f+i,1076.f-2*i,586.f-2*i,14,3);}
+        g.setColour(red);g.drawRoundedRectangle(13,13,1074,584,14,1.5f);
         auto plate=[&](float x,float y,float w,float h){
+            g.setColour(juce::Colours::black.withAlpha(.65f));g.fillRoundedRectangle(x+2,y+5,w,h,12);
+            juce::ColourGradient bevel(juce::Colour(0xffe1e6ee),x,y,juce::Colour(0xff606875),x,y+h,false);bevel.addColour(.14,juce::Colour(0xff333a45));bevel.addColour(.83,juce::Colour(0xff15191f));g.setGradientFill(bevel);g.fillRoundedRectangle(x,y,w,h,12);
             juce::ColourGradient p(juce::Colour(0xff30333d),x,y,juce::Colour(0xff0c0e13),x,y+h,false);
-            p.addColour(.22,juce::Colour(0xff17191f));g.setGradientFill(p);g.fillRoundedRectangle(x,y,w,h,12);
-            g.setColour(juce::Colour(0xff656974));g.drawRoundedRectangle(x,y,w,h,12,1);
+            p.addColour(.22,juce::Colour(0xff17191f));g.setGradientFill(p);g.fillRoundedRectangle(x+3,y+3,w-6,h-6,9);
+            g.setColour(juce::Colour(0xff727987));g.drawRoundedRectangle(x+3,y+3,w-6,h-6,9,1);
+            for(int i=0;i<4;++i){g.setColour(red.withAlpha(.07f));g.drawLine(x+12,y+5+i,x+w-12,y+5+i,2);}
+            g.setColour(red.withAlpha(.65f));g.drawLine(x+14,y+5,x+w-14,y+5,1);
         };
         plate(22,22,250,566);plate(285,22,793,96);plate(285,130,793,260);plate(285,402,793,186);
         for(int i=0;i<6;++i){g.setColour(red.withAlpha(.04f));g.drawRoundedRectangle(14.f+i,14.f+i,1072.f-2*i,582.f-2*i,14,3);}
-        g.setColour(red);g.fillRoundedRectangle(286,119,790,3,1);
+        for(int i=8;i>0;--i){g.setColour(red.withAlpha(.045f));g.fillRoundedRectangle(286,120.f-i,790,float(2*i+2),4);}
+        g.setColour(red);g.fillRoundedRectangle(286,119,790,3,1);g.setColour(juce::Colour(0xffffa1ad));g.fillRect(300,120,762,1);
         g.setFont(juce::FontOptions(55.f,juce::Font::bold|juce::Font::italic));
         juce::ColourGradient logo(juce::Colour(0xfffafaff),0,40,juce::Colour(0xff757a85),0,102,false);
         logo.addColour(.5,juce::Colour(0xffbcc0ca));g.setGradientFill(logo);
-        g.drawText("JAM3S",32,38,228,72,juce::Justification::centred);
+        for(int i=5;i>0;--i){g.setColour(juce::Colour(0xff090a0d));g.drawText("JAM3S",32+i,38+i,228,72,juce::Justification::centred);}
+        g.setColour(red.withAlpha(.35f));g.drawText("JAM3S",32,40,228,72,juce::Justification::centred);
+        g.setGradientFill(logo);g.drawText("JAM3S",32,38,228,72,juce::Justification::centred);
         g.setFont(juce::FontOptions(13.f,juce::Font::bold));g.setColour(red);
         g.drawText("V O C A L   E N G I N E",30,109,234,24,juce::Justification::centred);
-        g.setColour(juce::Colour(0xffa3a7b4));g.drawText("BLACK CHROME  /  2.1",30,134,234,22,juce::Justification::centred);
+        g.setColour(juce::Colour(0xffa3a7b4));g.drawText("CHROME INFERNO  /  2.2",30,134,234,22,juce::Justification::centred);
         g.setColour(juce::Colour(0xff090a0e));g.fillRoundedRectangle(42,177,210,230,8);
         g.setColour(red);g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.drawText("SIGNAL OUTPUT",52,184,190,25,juce::Justification::centred);
         float db=juce::Decibels::gainToDecibels(engine.peak.load(),-60.f);
         float level=juce::jlimit(0.f,1.f,(db+60.f)/60.f);
-        for(int i=0;i<28;++i){g.setColour(i<level*28?red:juce::Colour(0xff262831));g.fillRoundedRectangle(78,365.f-i*5.2f,138,3.5f,1);}
+        for(int i=0;i<28;++i){if(i<level*28){g.setColour(red.withAlpha(.13f));g.fillRoundedRectangle(72,363.f-i*5.2f,150,7,3);}
+            g.setColour(i<level*28?red:juce::Colour(0xff262831));g.fillRoundedRectangle(78,365.f-i*5.2f,138,3.5f,1);
+            if(i<level*28){g.setColour(juce::Colour(0xffff9baa));g.fillRect(80.f,365.f-i*5.2f,134.f,.8f);}}
         g.setColour(juce::Colours::white);g.setFont(juce::FontOptions(18.f));g.drawText(juce::String(db,1)+" dB",52,375,190,25,juce::Justification::centred);
         g.setFont(juce::FontOptions(12.f,juce::Font::bold));g.setColour(juce::Colour(0xffa9adba));
         g.drawText("PRESET BANK  /  20",42,423,210,20,juce::Justification::centredLeft);
