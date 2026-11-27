@@ -41,7 +41,7 @@ function New-Art([int]$w,[int]$h,[string]$file,[bool]$small) {
     $sub=New-Object System.Drawing.Font('Arial',10,[System.Drawing.FontStyle]::Bold)
     $brush=New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(255,40,65))
     $g.DrawString('CHROME INFERNO',$sub,$brush,(New-Object System.Drawing.RectangleF(0,86,$w,30)),$fmt)
-    $g.DrawString('VOCAL ENGINE  /  2.4',$sub,[System.Drawing.Brushes]::Silver,(New-Object System.Drawing.RectangleF(0,$h-57,$w,30)),$fmt)
+    $g.DrawString('VOCAL ENGINE  /  2.4',$sub,[System.Drawing.Brushes]::Silver,(New-Object System.Drawing.RectangleF(0,($h-57),$w,30)),$fmt)
     $names=@('TONE','DYNAMICS','CHARACTER','SPACE')
     for($j=0;$j -lt 4;$j++){
       $g.DrawString($names[$j],$sub,[System.Drawing.Brushes]::Silver,(New-Object System.Drawing.RectangleF(0,(125+$j*36),$w,24)),$fmt)
